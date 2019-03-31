@@ -52,7 +52,6 @@ CONF_DESTINATION = 'destination'
 CONF_ORIGIN = 'origin'
 CONF_TOMORROW = 'include_tomorrow'
 
-DEFAULT_NAME = 'GTFS Sensor'
 DEFAULT_PATH = 'gtfs'
 
 BICYCLE_ALLOWED_DEFAULT = STATE_UNKNOWN
@@ -85,6 +84,7 @@ LOCATION_TYPE_OPTIONS = {
     2: "Station Entrance/Exit",
     3: 'Other',
 }
+NAME_FORMAT = '{origin} to {destination}'
 PICKUP_TYPE_DEFAULT = STATE_UNKNOWN
 PICKUP_TYPE_OPTIONS = {
     0: 'Regular',
@@ -396,11 +396,10 @@ class GTFSDepartureSensor(Entity):
         self.destination = destination
         self._include_tomorrow = include_tomorrow
         self._offset = offset
-        self._custom_name = name
 
         self._available = False
         self._icon = ICON
-        self._name = ''
+        self._name = name  # type: Optional[str]
         self._state = None  # type: Optional[str]
         self._attributes = {}  # type: dict
 
@@ -417,7 +416,33 @@ class GTFSDepartureSensor(Entity):
     @property
     def name(self) -> str:
         """Return the name of the sensor."""
-        return self._name
+        if self._name:
+            return self._name
+
+        if not self._route:
+            return '{origin} to {destination}'.format(
+                origin=getattr(self._origin,
+                               'stop_name',
+                               self.origin),
+                destination=getattr(self._destination,
+                                    'stop_name',
+                                    self.destination),
+            )
+
+        return '{route_type} {route_name}: {destination}'.format(
+            route_type=ROUTE_TYPE_OPTIONS[self._route.route_type],
+            route_name=(getattr(self._route, 'route_short_name', False)
+                        or getattr(self._route, 'route_long_name', '')),
+            destination=(getattr(self._destination, 'stop_headsign', False)
+                         or getattr(self._trip, 'trip_headsign', False)
+                         or getattr(self._trip, 'trip_short_name', False)
+                         or getattr(self._destination, 'short_name', '')),
+        )
+
+    @property
+    def entity_id(self) -> str:
+        """Return the entity ID."""
+        return 'sensor.gtfs_{}_to_{}'.format(self.origin, self.destination)
 
     @property
     def state(self) -> Optional[str]:  # type: ignore
@@ -508,24 +533,13 @@ class GTFSDepartureSensor(Entity):
                         self._route.agency_id)
                     self._agency = False
 
-            # Assign attributes, icon and name
+            # Assign attributes and icon
             self.update_attributes()
 
             if self._route:
                 self._icon = ICONS.get(self._route.route_type, ICON)
             else:
                 self._icon = ICON
-
-            name = '{agency} {origin} to {destination} next departure'
-            if not self._departure:
-                name = '{default}'
-            self._name = (self._custom_name or
-                          name.format(agency=getattr(self._agency,
-                                                     'agency_name',
-                                                     DEFAULT_NAME),
-                                      default=DEFAULT_NAME,
-                                      origin=self.origin,
-                                      destination=self.destination))
 
     def update_attributes(self) -> None:
         """Update state attributes."""
