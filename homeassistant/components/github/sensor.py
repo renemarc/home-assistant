@@ -30,6 +30,7 @@ ATTR_LATEST_OPEN_PULL_REQUEST_URL = "latest_open_pull_request_url"
 ATTR_OPEN_PULL_REQUESTS = "open_pull_requests"
 ATTR_PATH = "path"
 ATTR_STARGAZERS = "stargazers"
+ATTR_FORKS = "forks"
 
 DEFAULT_NAME = "GitHub"
 
@@ -86,6 +87,7 @@ class GitHubSensor(Entity):
         self._pull_request_count = None
         self._latest_open_pr_url = None
         self._stargazers = None
+        self._forks = None
         self._github_data = github_data
 
     @property
@@ -122,6 +124,7 @@ class GitHubSensor(Entity):
             ATTR_LATEST_OPEN_PULL_REQUEST_URL: self._latest_open_pr_url,
             ATTR_OPEN_PULL_REQUESTS: self._pull_request_count,
             ATTR_STARGAZERS: self._stargazers,
+            ATTR_FORKS: self._forks,
         }
         if self._latest_release_tag is not None:
             attrs[ATTR_LATEST_RELEASE_TAG] = self._latest_release_tag
@@ -154,6 +157,7 @@ class GitHubSensor(Entity):
         self._pull_request_count = self._github_data.pull_request_count
         self._latest_open_pr_url = self._github_data.latest_open_pr_url
         self._stargazers = self._github_data.stargazers
+        self._forks = self._github_data.forks
 
 
 class GitHubData:
@@ -190,6 +194,7 @@ class GitHubData:
         self.pull_request_count = None
         self.latest_open_pr_url = None
         self.stargazers = None
+        self.forks = None
 
     def update(self):
         """Update GitHub Sensor."""
@@ -197,6 +202,7 @@ class GitHubData:
             repo = self._github_obj.get_repo(self.repository_path)
 
             self.stargazers = repo.stargazers_count
+            self.forks = repo.forks_count
 
             open_issues = repo.get_issues(state="open", sort="created")
             if open_issues is not None:
